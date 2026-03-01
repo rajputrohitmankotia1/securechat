@@ -23,8 +23,9 @@ const userCount = document.getElementById("userCount");
 const typingIndicator = document.getElementById("typingIndicator");
 const roomName = document.getElementById("roomName");
 const copyBtn = document.getElementById("copyBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
-/* Avatar selection */
+/* Avatar */
 document.querySelectorAll(".avatar-option").forEach(option => {
   option.addEventListener("click", () => {
     document.querySelectorAll(".avatar-option").forEach(o => o.classList.remove("selected"));
@@ -34,14 +35,46 @@ document.querySelectorAll(".avatar-option").forEach(option => {
 });
 document.querySelector(".avatar-option").classList.add("selected");
 
-/* Encryption */
+/* AUTO LOGIN */
+window.addEventListener("load", async () => {
+  const savedUser = localStorage.getItem("username");
+  const savedRoom = localStorage.getItem("room");
+  const savedPassword = localStorage.getItem("password");
+  const savedAvatar = localStorage.getItem("avatar");
+
+  if (savedUser && savedRoom && savedPassword && savedAvatar) {
+    username = savedUser;
+    room = savedRoom;
+    password = savedPassword;
+    selectedAvatar = savedAvatar;
+
+    cryptoKey = await deriveKey(password);
+
+    loginScreen.style.display = "none";
+    chatScreen.style.display = "flex";
+    roomName.innerText = "Room: " + room;
+
+    socket.emit("join-room", { room, username, avatar: selectedAvatar });
+  }
+});
+
+/* ENCRYPTION */
 async function deriveKey(password) {
   const keyMaterial = await crypto.subtle.importKey(
-    "raw", encoder.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
+    "raw",
+    encoder.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
   );
 
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: encoder.encode("secure-salt"), iterations: 150000, hash: "SHA-256" },
+    {
+      name: "PBKDF2",
+      salt: encoder.encode("secure-salt"),
+      iterations: 150000,
+      hash: "SHA-256"
+    },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,
@@ -51,8 +84,16 @@ async function deriveKey(password) {
 
 async function encryptMessage(text) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, encoder.encode(text));
-  return { iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) };
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    cryptoKey,
+    encoder.encode(text)
+  );
+
+  return {
+    iv: Array.from(iv),
+    data: Array.from(new Uint8Array(encrypted))
+  };
 }
 
 async function decryptMessage(payload) {
@@ -64,7 +105,7 @@ async function decryptMessage(payload) {
   return decoder.decode(decrypted);
 }
 
-/* Join */
+/* JOIN */
 joinBtn.addEventListener("click", async () => {
   username = usernameInput.value.trim();
   room = roomInput.value.trim();
@@ -77,6 +118,11 @@ joinBtn.addEventListener("click", async () => {
 
   cryptoKey = await deriveKey(password);
 
+  localStorage.setItem("username", username);
+  localStorage.setItem("room", room);
+  localStorage.setItem("password", password);
+  localStorage.setItem("avatar", selectedAvatar);
+
   loginScreen.style.display = "none";
   chatScreen.style.display = "flex";
   roomName.innerText = "Room: " + room;
@@ -84,8 +130,14 @@ joinBtn.addEventListener("click", async () => {
   socket.emit("join-room", { room, username, avatar: selectedAvatar });
 });
 
-/* Add message */
-function addMessage(text, isMe=false, avatarIcon="🙂") {
+/* LOGOUT */
+logoutBtn.addEventListener("click", () => {
+  localStorage.clear();
+  location.reload();
+});
+
+/* MESSAGE UI */
+function addMessage(text, isMe = false, avatarIcon = "🙂") {
   const container = document.createElement("div");
   container.className = "message-row " + (isMe ? "me-row" : "");
 
@@ -96,9 +148,14 @@ function addMessage(text, isMe=false, avatarIcon="🙂") {
   const messageDiv = document.createElement("div");
   messageDiv.className = "message " + (isMe ? "me" : "other");
 
-  const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 
-  messageDiv.innerHTML = `<div>${text}</div><div class="timestamp">${time}</div>`;
+  messageDiv.innerHTML =
+    `<div>${text}</div>
+     <div class="timestamp">${time}</div>`;
 
   container.appendChild(avatar);
   container.appendChild(messageDiv);
@@ -106,9 +163,11 @@ function addMessage(text, isMe=false, avatarIcon="🙂") {
   messages.scrollTop = messages.scrollHeight;
 }
 
-/* Send */
+/* SEND */
 sendBtn.addEventListener("click", sendMessage);
-msgInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+msgInput.addEventListener("keypress", e => {
+  if (e.key === "Enter") sendMessage();
+});
 
 async function sendMessage() {
   const text = msgInput.value.trim();
@@ -124,7 +183,7 @@ async function sendMessage() {
   stopTyping();
 }
 
-/* Typing */
+/* TYPING */
 msgInput.addEventListener("input", () => {
   socket.emit("typing", room);
   if (typingTimeout) clearTimeout(typingTimeout);
@@ -135,7 +194,7 @@ function stopTyping() {
   socket.emit("stop-typing", room);
 }
 
-/* Socket */
+/* SOCKET EVENTS */
 socket.on("receive-message", async payload => {
   try {
     const decrypted = await decryptMessage(payload.message);
