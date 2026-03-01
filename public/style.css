@@ -1,32 +1,46 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ============================= */
+/* GLOBAL RESET */
+/* ============================= */
 
-body {
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
   font-family: 'Segoe UI', sans-serif;
   background: linear-gradient(135deg,#0f172a,#1e293b);
   color: white;
-  height: 100vh;
 }
 
-/* ===== LOGIN ===== */
+/* ============================= */
+/* LOGIN SCREEN */
+/* ============================= */
 
 #loginScreen {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  height: 100dvh;
   padding: 20px;
 }
 
 .card {
   width: 100%;
   max-width: 420px;
-  background: rgba(30,41,59,0.9);
+  background: rgba(30,41,59,0.95);
   backdrop-filter: blur(12px);
   padding: 30px;
   border-radius: 20px;
 }
 
-.logo { text-align: center; margin-bottom: 25px; }
+.logo {
+  text-align: center;
+  margin-bottom: 25px;
+}
 
 /* Floating Inputs */
 
@@ -43,6 +57,7 @@ body {
   background: rgba(255,255,255,0.05);
   color: white;
   outline: none;
+  font-size: 14px;
 }
 
 .input-group label {
@@ -78,6 +93,7 @@ body {
   padding: 6px;
   border-radius: 50%;
   cursor: pointer;
+  transition: 0.2s;
 }
 
 .avatar-option.selected {
@@ -95,30 +111,45 @@ button {
   cursor: pointer;
 }
 
-#joinBtn { width: 100%; }
-
-.header-actions button {
-  margin-left: 8px;
+#joinBtn {
+  width: 100%;
 }
 
-/* ===== CHAT ===== */
+/* ============================= */
+/* CHAT SCREEN */
+/* ============================= */
 
 #chatScreen {
   display: none;
-  height: 100vh;
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  width: 100%;
   display: flex;
   flex-direction: column;
 }
 
+/* Header */
+
 header {
-  padding: 15px;
-  background: rgba(30,41,59,0.95);
+  flex-shrink: 0;
+  padding: 14px 16px;
+  background: rgba(30,41,59,0.98);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.online { font-size: 12px; color: #4ade80; }
+.online {
+  font-size: 12px;
+  color: #4ade80;
+}
+
+.header-actions button {
+  margin-left: 8px;
+}
+
+/* Messages */
 
 #messages {
   flex: 1;
@@ -126,13 +157,17 @@ header {
   padding: 20px;
 }
 
+/* Message Layout */
+
 .message-row {
   display: flex;
   align-items: flex-end;
   margin-bottom: 18px;
 }
 
-.me-row { flex-direction: row-reverse; }
+.me-row {
+  flex-direction: row-reverse;
+}
 
 .avatar {
   width: 42px;
@@ -158,8 +193,13 @@ header {
   font-size: 14px;
 }
 
-.me { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-.other { background: #334155; }
+.me {
+  background: linear-gradient(135deg,#3b82f6,#2563eb);
+}
+
+.other {
+  background: #334155;
+}
 
 .timestamp {
   font-size: 11px;
@@ -167,10 +207,14 @@ header {
   margin-top: 5px;
 }
 
+/* Footer */
+
 footer {
+  flex-shrink: 0;
   display: flex;
   padding: 12px;
-  background: rgba(30,41,59,0.95);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  background: rgba(30,41,59,0.98);
 }
 
 footer input {
@@ -185,6 +229,8 @@ footer button {
   margin-left: 8px;
   border-radius: 25px;
 }
+
+/* Typing */
 
 #typingIndicator {
   padding-left: 20px;
