@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecureChat</title>
+<link rel="stylesheet" href="style.css">
+<script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+
+<div id="loginScreen">
+  <div class="card">
+    <h2 class="logo">🔐 SecureChat</h2>
+
+    <div class="input-group">
+      <input id="usernameInput" type="text" required>
+      <label>Username</label>
+    </div>
+
+    <div class="input-group">
+      <input id="roomInput" type="text" required>
+      <label>Room Name</label>
+    </div>
+
+    <div class="input-group">
+      <input id="passwordInput" type="password" required>
+      <label>Room Password</label>
+    </div>
+
+    <div id="avatarSelection">
+      <p>Select Avatar</p>
+      <div class="avatar-options">
+        <div class="avatar-option" data-avatar="🦊">🦊</div>
+        <div class="avatar-option" data-avatar="🐼">🐼</div>
+        <div class="avatar-option" data-avatar="🐵">🐵</div>
+        <div class="avatar-option" data-avatar="🐸">🐸</div>
+        <div class="avatar-option" data-avatar="🐧">🐧</div>
+        <div class="avatar-option" data-avatar="🦁">🦁</div>
+      </div>
+    </div>
+
+    <button id="joinBtn">Join Chat</button>
+  </div>
+</div>
+
+<div id="chatScreen">
+
+  <header>
+    <div>
+      <div id="roomName"></div>
+      <div class="online" id="userCount"></div>
+    </div>
+    <button id="copyBtn">Copy Link</button>
+  </header>
+
+  <div id="messages"></div>
+  <div id="typingIndicator"></div>
+
+  <footer>
+    <input id="msgInput" placeholder="Type message...">
+    <button id="sendBtn">Send</button>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
