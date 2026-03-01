@@ -1,117 +1,184 @@
-/* ==============================
-   SecureChat - Production Server
-   ============================== */
+const socket = io();
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
+let username="", room="", password="", cryptoKey=null;
+let selectedAvatar="🦊";
+let typingTimeout=null;
 
-const app = express();
-const server = http.createServer(app);
+/* DOM */
+const loginScreen=document.getElementById("loginScreen");
+const chatScreen=document.getElementById("chatScreen");
+const usernameInput=document.getElementById("usernameInput");
+const roomInput=document.getElementById("roomInput");
+const passwordInput=document.getElementById("passwordInput");
+const joinBtn=document.getElementById("joinBtn");
+const sendBtn=document.getElementById("sendBtn");
+const msgInput=document.getElementById("msgInput");
+const messages=document.getElementById("messages");
+const userCount=document.getElementById("userCount");
+const typingIndicator=document.getElementById("typingIndicator");
+const roomName=document.getElementById("roomName");
+const copyBtn=document.getElementById("copyBtn");
+const logoutBtn=document.getElementById("logoutBtn");
 
-/* ==============================
-   Socket.io Setup
-   ============================== */
+/* Avatar selection */
+document.querySelectorAll(".avatar-option").forEach(option=>{
+  option.addEventListener("click",()=>{
+    document.querySelectorAll(".avatar-option").forEach(o=>o.classList.remove("selected"));
+    option.classList.add("selected");
+    selectedAvatar=option.dataset.avatar;
+  });
+});
+document.querySelector(".avatar-option").classList.add("selected");
 
-const io = new Server(server, {
-  cors: {
-    origin: "*",
+/* Auto Login */
+window.addEventListener("load", async ()=>{
+  const savedUser=localStorage.getItem("username");
+  const savedRoom=localStorage.getItem("room");
+  const savedPassword=localStorage.getItem("password");
+  const savedAvatar=localStorage.getItem("avatar");
+
+  if(savedUser && savedRoom && savedPassword && savedAvatar){
+    username=savedUser;
+    room=savedRoom;
+    password=savedPassword;
+    selectedAvatar=savedAvatar;
+
+    cryptoKey=await deriveKey(password);
+
+    loginScreen.style.display="none";
+    chatScreen.style.display="flex";
+    roomName.innerText="Room: "+room;
+
+    socket.emit("join-room",{room,username,avatar:selectedAvatar});
   }
 });
 
-/* ==============================
-   Middleware
-   ============================== */
+/* Encryption */
+async function deriveKey(password){
+  const keyMaterial=await crypto.subtle.importKey(
+    "raw",encoder.encode(password),{name:"PBKDF2"},false,["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    {name:"PBKDF2",salt:encoder.encode("secure-salt"),iterations:150000,hash:"SHA-256"},
+    keyMaterial,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]
+  );
+}
 
-app.set("trust proxy", 1);
-app.use(express.static("public"));
+async function encryptMessage(text){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},cryptoKey,encoder.encode(text));
+  return {iv:Array.from(iv),data:Array.from(new Uint8Array(encrypted))};
+}
 
-/* ==============================
-   In-Memory Room Storage
-   ============================== */
+async function decryptMessage(payload){
+  const decrypted=await crypto.subtle.decrypt(
+    {name:"AES-GCM",iv:new Uint8Array(payload.iv)},cryptoKey,new Uint8Array(payload.data)
+  );
+  return decoder.decode(decrypted);
+}
 
-let roomUsers = {};
+/* Join */
+joinBtn.addEventListener("click",async ()=>{
+  username=usernameInput.value.trim();
+  room=roomInput.value.trim();
+  password=passwordInput.value.trim();
+  if(!username||!room||!password){alert("All fields required");return;}
 
-/* ==============================
-   Socket Connection
-   ============================== */
+  cryptoKey=await deriveKey(password);
 
-io.on("connection", (socket) => {
-  console.log("New user connected:", socket.id);
+  localStorage.setItem("username",username);
+  localStorage.setItem("room",room);
+  localStorage.setItem("password",password);
+  localStorage.setItem("avatar",selectedAvatar);
 
-  /* ===== Join Room ===== */
+  loginScreen.style.display="none";
+  chatScreen.style.display="flex";
+  roomName.innerText="Room: "+room;
 
-  socket.on("join-room", ({ room, username, avatar }) => {
-    socket.join(room);
-
-    socket.room = room;
-    socket.username = username;
-    socket.avatar = avatar;
-
-    if (!roomUsers[room]) {
-      roomUsers[room] = [];
-    }
-
-    roomUsers[room].push({
-      id: socket.id,
-      username,
-      avatar
-    });
-
-    io.to(room).emit("update-users", roomUsers[room]);
-
-    console.log(`${username} joined room ${room}`);
-  });
-
-  /* ===== Send Message ===== */
-
-  socket.on("send-message", (data) => {
-    if (!socket.room) return;
-
-    socket.to(socket.room).emit("receive-message", {
-      message: data.message,
-      avatar: socket.avatar
-    });
-  });
-
-  /* ===== Typing Indicator ===== */
-
-  socket.on("typing", () => {
-    socket.to(socket.room).emit("show-typing", socket.username);
-  });
-
-  socket.on("stop-typing", () => {
-    socket.to(socket.room).emit("hide-typing");
-  });
-
-  /* ===== Disconnect ===== */
-
-  socket.on("disconnect", () => {
-    if (!socket.room) return;
-
-    if (roomUsers[socket.room]) {
-      roomUsers[socket.room] = roomUsers[socket.room].filter(
-        user => user.id !== socket.id
-      );
-
-      io.to(socket.room).emit("update-users", roomUsers[socket.room]);
-
-      if (roomUsers[socket.room].length === 0) {
-        delete roomUsers[socket.room];
-      }
-    }
-
-    console.log("User disconnected:", socket.id);
-  });
-
+  socket.emit("join-room",{room,username,avatar:selectedAvatar});
 });
 
-/* ==============================
-   Server Start (Render Ready)
-   ============================== */
+/* Logout */
+logoutBtn.addEventListener("click",()=>{
+  localStorage.clear();
+  location.reload();
+});
 
-const PORT = process.env.PORT || 3000;
+/* Add Message */
+function addMessage(text,isMe=false,avatarIcon="🙂"){
+  const container=document.createElement("div");
+  container.className="message-row "+(isMe?"me-row":"");
 
-server.listen(PORT, () => {
-  console.log("🚀 SecureChat running on port " + PORT);
+  const avatar=document.createElement("div");
+  avatar.className="avatar";
+  avatar.innerText=avatarIcon;
+
+  const messageDiv=document.createElement("div");
+  messageDiv.className="message "+(isMe?"me":"other");
+
+  const time=new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+  messageDiv.innerHTML=`<div>${text}</div><div class="timestamp">${time}</div>`;
+
+  container.appendChild(avatar);
+  container.appendChild(messageDiv);
+  messages.appendChild(container);
+  messages.scrollTop=messages.scrollHeight;
+}
+
+/* Send */
+sendBtn.addEventListener("click",sendMessage);
+msgInput.addEventListener("keypress",e=>{if(e.key==="Enter")sendMessage();});
+
+async function sendMessage(){
+  const text=msgInput.value.trim();
+  if(!text)return;
+
+  const finalText=username+": "+text;
+  const encrypted=await encryptMessage(finalText);
+
+  socket.emit("send-message",{room,message:encrypted});
+  addMessage(finalText,true,selectedAvatar);
+
+  msgInput.value="";
+  stopTyping();
+}
+
+/* Typing */
+msgInput.addEventListener("input",()=>{
+  socket.emit("typing",room);
+  if(typingTimeout)clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(stopTyping,1000);
+});
+
+function stopTyping(){
+  socket.emit("stop-typing",room);
+}
+
+/* Socket */
+socket.on("receive-message",async payload=>{
+  try{
+    const decrypted=await decryptMessage(payload.message);
+    addMessage(decrypted,false,payload.avatar);
+  }catch{
+    addMessage("⚠ Decryption failed",false);
+  }
+});
+
+socket.on("update-users",users=>{
+  userCount.innerText=users.length+" user(s) online";
+});
+
+socket.on("show-typing",user=>{
+  typingIndicator.innerText=user+" is typing...";
+});
+
+socket.on("hide-typing",()=>{
+  typingIndicator.innerText="";
+});
+
+copyBtn.addEventListener("click",()=>{
+  navigator.clipboard.writeText(window.location.href);
+  alert("Room link copied!");
 });

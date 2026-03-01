@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SecureChat</title>
 <link rel="stylesheet" href="style.css">
 <script src="/socket.io/socket.io.js"></script>
@@ -9,6 +9,7 @@
 
 <body>
 
+<!-- LOGIN -->
 <div id="loginScreen">
   <div class="card">
     <h2 class="logo">🔐 SecureChat</h2>
@@ -44,6 +45,7 @@
   </div>
 </div>
 
+<!-- CHAT -->
 <div id="chatScreen">
 
   <header>
@@ -51,7 +53,10 @@
       <div id="roomName"></div>
       <div class="online" id="userCount"></div>
     </div>
-    <button id="copyBtn">Copy Link</button>
+    <div class="header-actions">
+      <button id="copyBtn">Copy Link</button>
+      <button id="logoutBtn">Logout</button>
+    </div>
   </header>
 
   <div id="messages"></div>
